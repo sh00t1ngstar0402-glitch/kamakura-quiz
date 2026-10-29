@@ -1,1 +1,356 @@
-kamakura_teacher_app.html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鎌倉時代・熱血教師AI道場</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js の読み込み（BGM用） -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Zen+Maru+Gothic:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Zen Maru Gothic', sans-serif;
+            background-color: #fffaf0;
+        }
+        .chat-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .chat-container::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 3px;
+        }
+        @keyframes pulse-flame {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+        .flame-anim {
+            animation: pulse-flame 1.5s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-amber-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- ヘッダー -->
+    <header class="bg-red-700 text-white shadow-md py-4 px-6 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="bg-amber-400 text-red-900 font-bold px-3 py-1 rounded-full text-sm shadow flame-anim flex items-center space-x-1">
+                <span>🔥</span>
+                <span>熱血クイズ特訓中</span>
+            </div>
+            <h1 class="text-xl md:text-2xl font-black tracking-wider">鎌倉時代・熱血教師AI道場</h1>
+        </div>
+        
+        <!-- BGMコントロールボタン -->
+        <div class="flex items-center space-x-2">
+            <button id="bgmBtn" onclick="toggleBGM()" class="bg-amber-400 hover:bg-amber-300 active:scale-95 text-red-950 font-bold text-xs md:text-sm px-3 py-1.5 rounded-xl shadow border border-amber-200 transition flex items-center space-x-1">
+                <span id="bgmIcon">🎵</span>
+                <span id="bgmText">BGM ON！</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- メインチャットエリア -->
+    <main class="flex-1 max-w-4xl w-full mx-auto p-4 md:p-6 flex flex-col">
+        <!-- 説明バナー -->
+        <div class="bg-white border-2 border-amber-300 rounded-2xl p-4 mb-4 shadow-sm flex items-start space-x-3">
+            <div class="text-3xl">🥋</div>
+            <div>
+                <h2 class="font-bold text-amber-900 text-base md:text-lg">テンポよく答えろ！鎌倉時代・爆速クイズ特訓！</h2>
+                <p class="text-sm text-slate-600 mt-1">
+                    解説は短く熱く！先生がどんどんクイズを出すから、気合いで回答してくれ！「スタート！」と送るか、下のボタンを押せ！
+                </p>
+            </div>
+        </div>
+
+        <!-- チャット履歴表示エリア -->
+        <div id="chatContainer" class="flex-1 chat-container bg-white border border-amber-200 rounded-2xl p-4 md:p-6 space-y-4 overflow-y-auto max-h-[60vh] min-h-[40vh] shadow-inner mb-4">
+            <!-- 初期挨拶メッセージ -->
+            <div class="flex items-start space-x-3">
+                <div class="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center font-bold flex-shrink-0 shadow">
+                    熱
+                </div>
+                <div class="bg-red-50 border border-red-200 rounded-2xl rounded-tl-none p-4 max-w-[85%] text-slate-800 shadow-sm leading-relaxed">
+                    <p class="font-bold text-red-700 mb-1">【熱血クイズ開幕！】</p>
+                    <p>おおおっ！余計な長文講義は終わりだ！これからは一問一答＆スピードクイズで鎌倉時代を身体に叩き込んでいくぞ！<br>準備はいいか！？「スタート」を押して特訓を開始しろっ！🔥</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- クイック質問・操作チップ -->
+        <div class="flex flex-wrap gap-2 mb-3">
+            <button onclick="sendQuickPrompt('クイズをスタートして！')" class="bg-red-600 hover:bg-red-700 text-white text-xs md:text-sm font-bold px-4 py-2 rounded-full border border-red-500 shadow transition flex items-center space-x-1">
+                <span>🔥 特訓スタート！</span>
+            </button>
+            <button onclick="sendQuickPrompt('次の問題ちょうだい！')" class="bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-300 transition">
+                ⚡ 次の問題！
+            </button>
+            <button onclick="sendQuickPrompt('ヒントがほしい！')" class="bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-300 transition">
+                💡 ヒントをくれ！
+            </button>
+            <button onclick="sendQuickPrompt('もう一回解説を簡潔にお願い！')" class="bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-300 transition">
+                📝 超簡潔に解説！
+            </button>
+        </div>
+
+        <!-- 入力フォーム -->
+        <form id="chatForm" onsubmit="handleSubmit(event)" class="flex gap-2">
+            <input 
+                type="text" 
+                id="userInput" 
+                placeholder="回答を入力しろ！（例：源頼朝、御恩と奉公、1192年など）" 
+                class="flex-1 bg-white border-2 border-amber-300 focus:border-red-500 focus:outline-none rounded-xl px-4 py-3 text-sm md:text-base shadow-sm"
+                required
+            >
+            <button 
+                type="submit" 
+                id="sendButton"
+                class="bg-red-600 hover:bg-red-700 active:scale-95 text-white font-bold px-6 py-3 rounded-xl shadow transition flex items-center justify-center space-x-1"
+            >
+                <span>送信</span>
+                <span>🔥</span>
+            </button>
+        </form>
+    </main>
+
+    <!-- JavaScript ロジック -->
+    <script>
+        // クイズ出題特化型・カスタム指示
+        const systemInstructionText = `
+あなたは中学校の社会科（歴史）を担当する「熱血な昭和の教師」です。
+長々とした解説は行わず、**テンポ良い熱血クイズ形式**で生徒の鎌倉時代の知識定着を特訓します。
+
+# 前提
+- 対象ユーザー：中学生
+- 学習範囲：中学校歴史「鎌倉時代」全体（源頼朝、鎌倉幕府、御恩と奉公、執権政治・北条氏、元寇・蒙古襲来、鎌倉文化、幕府の衰退など）
+- トーン＆マナー：昭和の熱血教師（「〜だ！」「正解だ！よくやった！」「惜しい！」「気合入れて答えろ！」）
+
+# 指導・出題ルール（クイズ特化）
+1. 長文解説は厳禁！：解説・フィードバックは3〜4行程度の短く熱い文章にまとめ、テンポ感を最重視すること。
+2. 採点と熱い称賛：生徒の回答に対して、正誤判定を即時に行い、正解なら「素晴らしい！〇〇というポイントを掴めてるぞ！」と具体的に褒める。誤答なら愛をもって優しく補足する。
+3. 誤解ポイントのワンポイント伝授：解説時に「※ちなみにここはテストで選択肢に騙されやすいぞ！」と短く一言添える。
+4. 必ず次のクイズを出題する：1回の返答の最後には、必ず次の鎌倉時代に関するクイズ（記述または選択肢）を1問提示すること。
+
+# 出力形式
+以下の短く勢いのあるフォーマットで出力してください。
+
+【熱血判定＆短く解説】
+（正誤の即時判定、熱い称賛またはフォロー、3行程度の超簡潔な解説とワンポイント注意）
+
+## 🔥【第○問！熱血クイズ】
+（次に答えるべき鎌倉時代の問題1問。選択式または一言記述式で答えやすくすること）
+`;
+
+        let isBgmPlaying = false;
+        let loopSeq = null;
+
+        // Tone.jsを使用した熱血・和風テイストの8ビット風盛り上がりBGM
+        function setupBGM() {
+            const synth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "triangle" },
+                envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 0.4 }
+            }).toDestination();
+            synth.volume.value = -12; // 音量調整
+
+            // 盛り上がる熱血テンポのコード＆メロディライン
+            const pattern = [
+                { time: "0:0", note: ["A3", "E4", "A4"] },
+                { time: "0:1", note: ["C4", "E4"] },
+                { time: "0:2", note: ["G3", "D4", "G4"] },
+                { time: "0:3", note: ["B3", "D4"] },
+                { time: "1:0", note: ["F3", "C4", "F4"] },
+                { time: "1:1", note: ["A3", "C4"] },
+                { time: "1:2", note: ["E3", "B3", "E4"] },
+                { time: "1:3", note: ["G3", "B3"] },
+            ];
+
+            loopSeq = new Tone.Part((time, value) => {
+                synth.triggerAttackRelease(value.note, "8n", time);
+            }, pattern);
+
+            loopSeq.loop = true;
+            loopSeq.loopEnd = "2m";
+            Tone.Transport.bpm.value = 135; // 熱血なアップテンポ
+        }
+
+        async function toggleBGM() {
+            const btnText = document.getElementById('bgmText');
+            const btnIcon = document.getElementById('bgmIcon');
+
+            if (!loopSeq) setupBGM();
+
+            if (!isBgmPlaying) {
+                await Tone.start();
+                Tone.Transport.start();
+                loopSeq.start(0);
+                isBgmPlaying = true;
+                btnText.innerText = 'BGM STOP';
+                btnIcon.innerText = '🔥';
+            } else {
+                Tone.Transport.stop();
+                loopSeq.stop();
+                isBgmPlaying = false;
+                btnText.innerText = 'BGM ON！';
+                btnIcon.innerText = '🎵';
+            }
+        }
+
+        let chatHistory = [];
+
+        function sendQuickPrompt(text) {
+            document.getElementById('userInput').value = text;
+            document.getElementById('chatForm').requestSubmit();
+        }
+
+        async function handleSubmit(event) {
+            event.preventDefault();
+            const inputEl = document.getElementById('userInput');
+            const sendBtn = document.getElementById('sendButton');
+            const userText = inputEl.value.trim();
+            if (!userText) return;
+
+            // 初回送信時にBGMを自動再生（ユーザーインタラクション起因）
+            if (!isBgmPlaying) {
+                toggleBGM().catch(() => {});
+            }
+
+            inputEl.value = '';
+            inputEl.disabled = true;
+            sendBtn.disabled = true;
+
+            appendMessage(userText, 'user');
+            const loadingId = appendLoadingMessage();
+
+            try {
+                chatHistory.push({ role: 'user', parts: [{ text: userText }] });
+                const responseText = await callGeminiWithBackoff(chatHistory);
+
+                removeMessage(loadingId);
+                appendMessage(responseText, 'model');
+                chatHistory.push({ role: 'model', parts: [{ text: responseText }] });
+
+            } catch (error) {
+                console.error(error);
+                removeMessage(loadingId);
+                appendMessage("ぬおおっ！通信エラーだ！もう一度気合を入れて送信してくれ！", 'model');
+                chatHistory.pop();
+            } finally {
+                inputEl.disabled = false;
+                sendBtn.disabled = false;
+                inputEl.focus();
+            }
+        }
+
+        async function callGeminiWithBackoff(history, retries = 3, delay = 1000) {
+            const apiKey = ""; // Canvas環境でランタイムにより自動設定
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: history,
+                systemInstruction: {
+                    parts: [{ text: systemInstructionText }]
+                }
+            };
+
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                    const result = await response.json();
+                    const candidate = result.candidates?.[0];
+                    if (candidate && candidate.content?.parts?.[0]?.text) {
+                        return candidate.content.parts[0].text;
+                    } else {
+                        throw new Error("Unexpected response structure");
+                    }
+                } catch (error) {
+                    if (i === retries - 1) throw error;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        function appendMessage(text, sender) {
+            const container = document.getElementById('chatContainer');
+            const wrapper = document.createElement('div');
+            wrapper.className = `flex items-start space-x-3 ${sender === 'user' ? 'justify-end' : ''}`;
+
+            if (sender === 'user') {
+                wrapper.innerHTML = `
+                    <div class="bg-amber-600 text-white rounded-2xl rounded-tr-none p-4 max-w-[85%] shadow-sm leading-relaxed">
+                        <p class="whitespace-pre-wrap font-bold">${escapeHTML(text)}</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold flex-shrink-0 shadow">
+                        生徒
+                    </div>
+                `;
+            } else {
+                const formattedHtml = formatAIResponse(text);
+                wrapper.innerHTML = `
+                    <div class="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center font-bold flex-shrink-0 shadow">
+                        熱
+                    </div>
+                    <div class="bg-red-50 border border-red-200 rounded-2xl rounded-tl-none p-4 max-w-[85%] text-slate-800 shadow-sm leading-relaxed space-y-2">
+                        ${formattedHtml}
+                    </div>
+                `;
+            }
+
+            container.appendChild(wrapper);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        let loadingCounter = 0;
+        function appendLoadingMessage() {
+            const container = document.getElementById('chatContainer');
+            const id = `loading-${loadingCounter++}`;
+            const wrapper = document.createElement('div');
+            wrapper.id = id;
+            wrapper.className = `flex items-start space-x-3`;
+            wrapper.innerHTML = `
+                <div class="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center font-bold flex-shrink-0 shadow animate-pulse">
+                    熱
+                </div>
+                <div class="bg-red-50 border border-red-200 rounded-2xl rounded-tl-none p-4 text-red-700 font-bold shadow-sm flex items-center space-x-2">
+                    <span class="inline-block animate-bounce">🔥</span>
+                    <span>採点中＆次のクイズを作成中だ…！待て！</span>
+                </div>
+            `;
+            container.appendChild(wrapper);
+            container.scrollTop = container.scrollHeight;
+            return id;
+        }
+
+        function removeMessage(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>]/g, function(tag) {
+                const chars = { '&': '&amp;', '<': '&lt;', '>': '&gt;' };
+                return chars[tag] || tag;
+            });
+        }
+
+        function formatAIResponse(text) {
+            let escaped = escapeHTML(text);
+            
+            escaped = escaped.replace(/【熱血判定＆短く解説】/g, '<span class="font-bold text-red-700 text-base block mb-1">【熱血判定＆解説】</span>');
+            escaped = escaped.replace(/## 🔥【第(.*?)問！熱血クイズ】/g, '<div class="mt-3 pt-3 border-t-2 border-dashed border-red-300 bg-amber-100 p-3 rounded-xl border border-amber-300"><span class="font-bold text-red-800 text-base block mb-1">🔥【第$1問！熱血クイズ】</span>');
+            escaped = escaped.replace(/🔥【第(.*?)問！熱血クイズ】/g, '<div class="mt-3 pt-3 border-t-2 border-dashed border-red-300 bg-amber-100 p-3 rounded-xl border border-amber-300"><span class="font-bold text-red-800 text-base block mb-1">🔥【第$1问！熱血クイズ】</span>');
+
+            escaped = escaped.replace(/(※.*?(?=<|$))/g, '<span class="inline-block my-1 px-2 py-0.5 bg-amber-200 text-amber-900 text-xs font-bold rounded">⚠️ $1</span>');
+
+            return escaped.replace(/\n/g, '<br>');
+        }
+    </script>
+</body>
+</html>
